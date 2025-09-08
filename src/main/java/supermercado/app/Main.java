@@ -19,7 +19,7 @@ public class Main extends JFrame {
 
     public Main() {
         setTitle("Simulação de Supermercado - Threads Paralelas");
-        setSize(900, 700);
+        setSize(900, 1200);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
@@ -43,9 +43,9 @@ public class Main extends JFrame {
         // Área de log
         logArea = new JTextArea();
         logArea.setEditable(false);
-        logArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        logArea.setFont(new Font("Monospaced", Font.PLAIN, 16));
         JScrollPane logScroll = new JScrollPane(logArea);
-        logScroll.setPreferredSize(new Dimension(900, 150));
+        logScroll.setPreferredSize(new Dimension(1200, 500));
         logScroll.setBorder(BorderFactory.createTitledBorder("Log de Atividades"));
         add(logScroll, BorderLayout.SOUTH);
 
