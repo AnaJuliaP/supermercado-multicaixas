@@ -16,6 +16,7 @@ public class Main extends JFrame {
     private BlockingQueue<Cliente> filaClientes = new LinkedBlockingQueue<>();
     private AtomicInteger caixaCounter = new AtomicInteger(0);
     private java.util.List<Caixa> caixas = new java.util.ArrayList<>();
+    private static final int LIMITE_CAIXAS = 10;
 
     public Main() {
         setTitle("Simulação de Supermercado - Threads Paralelas");
@@ -45,7 +46,7 @@ public class Main extends JFrame {
         logArea.setEditable(false);
         logArea.setFont(new Font("Monospaced", Font.PLAIN, 16));
         JScrollPane logScroll = new JScrollPane(logArea);
-        logScroll.setPreferredSize(new Dimension(1200, 500));
+        logScroll.setPreferredSize(new Dimension(1000, 300));
         logScroll.setBorder(BorderFactory.createTitledBorder("Log de Atividades"));
         add(logScroll, BorderLayout.SOUTH);
 
@@ -73,6 +74,7 @@ public class Main extends JFrame {
         logArea.setText("");
         log("🚀 SIMULAÇÃO INICIADA - 2 CAIXAS FIXOS");
         log("📊 Clientes são gerados automaticamente e distribuídos para os caixas");
+        log("⚠️ LIMITE MÁXIMO: " + LIMITE_CAIXAS + " caixas - Simulação será encerrada quando atingir o limite");
 
         // Criar dois caixas iniciais
         abrirNovoCaixa();
@@ -80,6 +82,16 @@ public class Main extends JFrame {
     }
 
     private void abrirNovoCaixa() {
+        // Verificar se já atingiu o limite de caixas
+        if (caixas.size() >= LIMITE_CAIXAS) {
+            log("⚠️ LIMITE MÁXIMO DE CAIXAS ATINGIDO! (" + LIMITE_CAIXAS + " caixas)");
+            log("🛑 SIMULAÇÃO ENCERRADA - Não é possível abrir mais caixas");
+            abrirCaixaBtn.setEnabled(false);
+            abrirCaixaBtn.setText("❌ LIMITE ATINGIDO");
+            abrirCaixaBtn.setBackground(new Color(200, 100, 100));
+            return;
+        }
+
         int numeroCaixa = caixaCounter.incrementAndGet();
         JPanel caixaPanel = criarPainelCaixa(numeroCaixa);
         caixasPanel.add(caixaPanel);
@@ -88,9 +100,18 @@ public class Main extends JFrame {
         caixas.add(caixa);
         new Thread(caixa).start();
 
-        log("🛒 NOVO CAIXA ABERTO: Caixa " + numeroCaixa);
+        log("🛒 NOVO CAIXA ABERTO: Caixa " + numeroCaixa + " (Total: " + caixas.size() + "/" + LIMITE_CAIXAS + ")");
         caixasPanel.revalidate();
         caixasPanel.repaint();
+
+        // Verificar se atingiu o limite após adicionar o caixa
+        if (caixas.size() >= LIMITE_CAIXAS) {
+            log("⚠️ LIMITE MÁXIMO DE CAIXAS ATINGIDO! (" + LIMITE_CAIXAS + " caixas)");
+            log("🛑 SIMULAÇÃO ENCERRADA - Não é possível abrir mais caixas");
+            abrirCaixaBtn.setEnabled(false);
+            abrirCaixaBtn.setText("❌ LIMITE ATINGIDO");
+            abrirCaixaBtn.setBackground(new Color(200, 100, 100));
+        }
     }
 
     private JPanel criarPainelCaixa(int numeroCaixa) {
