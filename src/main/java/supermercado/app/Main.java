@@ -13,10 +13,12 @@ public class Main extends JFrame {
     private JTextArea logArea;
     private JPanel caixasPanel;
     private JButton abrirCaixaBtn;
+    private JButton removerCaixaBtn;
     private BlockingQueue<Cliente> filaClientes = new LinkedBlockingQueue<>();
     private AtomicInteger caixaCounter = new AtomicInteger(0);
     private java.util.List<Caixa> caixas = new java.util.ArrayList<>();
     private static final int LIMITE_CAIXAS = 10;
+    private static final int CAIXAS_FIXOS = 2; // Dois primeiros caixas são fixos
 
     public Main() {
         setTitle("Simulação de Supermercado - Threads Paralelas");
@@ -54,17 +56,25 @@ public class Main extends JFrame {
         JPanel controlPanel = new JPanel();
         controlPanel.setBackground(new Color(240, 240, 240));
         controlPanel.setBorder(BorderFactory.createTitledBorder("Controles"));
+        controlPanel.setLayout(new FlowLayout());
 
         abrirCaixaBtn = new JButton("➕ Abrir Novo Caixa");
         abrirCaixaBtn.setBackground(new Color(100, 200, 100));
         abrirCaixaBtn.setForeground(Color.WHITE);
         abrirCaixaBtn.setFont(new Font("Arial", Font.BOLD, 14));
 
+        removerCaixaBtn = new JButton("➖ Remover Caixa");
+        removerCaixaBtn.setBackground(new Color(200, 100, 100));
+        removerCaixaBtn.setForeground(Color.WHITE);
+        removerCaixaBtn.setFont(new Font("Arial", Font.BOLD, 14));
+
         controlPanel.add(abrirCaixaBtn);
+        controlPanel.add(removerCaixaBtn);
         add(controlPanel, BorderLayout.WEST);
 
-        // Evento
+        // Eventos
         abrirCaixaBtn.addActionListener(e -> abrirNovoCaixa());
+        removerCaixaBtn.addActionListener(e -> removerUltimoCaixa());
 
         // Iniciar simulação com 2 caixas fixos
         iniciarSimulacao();
@@ -75,8 +85,9 @@ public class Main extends JFrame {
         log("🚀 SIMULAÇÃO INICIADA - 2 CAIXAS FIXOS");
         log("📊 Clientes são gerados automaticamente e distribuídos para os caixas");
         log("⚠️ LIMITE MÁXIMO: " + LIMITE_CAIXAS + " caixas - Simulação será encerrada quando atingir o limite");
+        log("⚠️ CAIXAS FIXOS: Os 2 primeiros caixas não podem ser removidos");
 
-        // Criar dois caixas iniciais
+        // Criar dois caixas iniciais (fixos)
         abrirNovoCaixa();
         abrirNovoCaixa();
     }
@@ -92,7 +103,8 @@ public class Main extends JFrame {
             return;
         }
 
-        int numeroCaixa = caixaCounter.incrementAndGet();
+        // Encontrar o próximo número disponível na sequência
+        int numeroCaixa = encontrarProximoNumeroDisponivel();
         JPanel caixaPanel = criarPainelCaixa(numeroCaixa);
         caixasPanel.add(caixaPanel);
 
@@ -100,38 +112,118 @@ public class Main extends JFrame {
         caixas.add(caixa);
         new Thread(caixa).start();
 
-        log("🛒 NOVO CAIXA ABERTO: Caixa " + numeroCaixa + " (Total: " + caixas.size() + "/" + LIMITE_CAIXAS + ")");
+        String tipoCaixa = (numeroCaixa <= CAIXAS_FIXOS) ? " (FIXO)" : " (DINÂMICO)";
+        log("🛒 NOVO CAIXA ABERTO: Caixa " + numeroCaixa + tipoCaixa + " (Total: " + caixas.size() + "/" + LIMITE_CAIXAS + ")");
         caixasPanel.revalidate();
         caixasPanel.repaint();
+
+        // Atualizar estado dos botões
+        atualizarEstadoBotoes();
 
         // Verificar se atingiu o limite após adicionar o caixa
         if (caixas.size() >= LIMITE_CAIXAS) {
             log("⚠️ LIMITE MÁXIMO DE CAIXAS ATINGIDO! (" + LIMITE_CAIXAS + " caixas)");
             log("🛑 SIMULAÇÃO ENCERRADA - Não é possível abrir mais caixas");
+        }
+    }
+
+    private int encontrarProximoNumeroDisponivel() {
+        // Se não há caixas, começar com 1
+        if (caixas.isEmpty()) {
+            return 1;
+        }
+
+        // Criar lista com os números dos caixas existentes
+        java.util.List<Integer> numerosExistentes = new java.util.ArrayList<>();
+        for (Caixa caixa : caixas) {
+            numerosExistentes.add(caixa.getId());
+        }
+
+        // Procurar o primeiro número disponível a partir de 1
+        for (int i = 1; i <= LIMITE_CAIXAS; i++) {
+            if (!numerosExistentes.contains(i)) {
+                return i;
+            }
+        }
+
+        // Se chegou aqui, todos os números estão ocupados (não deveria acontecer)
+        return caixas.size() + 1;
+    }
+
+    private void removerUltimoCaixa() {
+        // Verificar se há caixas para remover (apenas os dinâmicos)
+        if (caixas.size() <= CAIXAS_FIXOS) {
+            log("🔒 CAIXAS FIXOS PROTEGIDOS!");
+            log("❌ Não é possível remover os " + CAIXAS_FIXOS + " primeiros caixas - Eles são fixos e não podem ser removidos");
+            return;
+        }
+
+        // Remover o último caixa da lista (apenas dinâmicos)
+        Caixa caixaRemovido = caixas.remove(caixas.size() - 1);
+        caixaRemovido.encerrar();
+        
+        // Remover o painel do caixa da interface
+        caixasPanel.remove(caixasPanel.getComponentCount() - 1);
+        
+        log("🗑️ CAIXA REMOVIDO: Caixa " + caixaRemovido.getId() + " (DINÂMICO) (Total: " + caixas.size() + "/" + LIMITE_CAIXAS + ")");
+        log("⚠️ Clientes em atendimento no caixa removido foram transferidos para outros caixas");
+        
+        caixasPanel.revalidate();
+        caixasPanel.repaint();
+        
+        // Atualizar estado dos botões
+        atualizarEstadoBotoes();
+    }
+
+    private void atualizarEstadoBotoes() {
+        // Atualizar botão de abrir caixa
+        if (caixas.size() >= LIMITE_CAIXAS) {
             abrirCaixaBtn.setEnabled(false);
             abrirCaixaBtn.setText("❌ LIMITE ATINGIDO");
             abrirCaixaBtn.setBackground(new Color(200, 100, 100));
+        } else {
+            abrirCaixaBtn.setEnabled(true);
+            abrirCaixaBtn.setText("➕ Abrir Novo Caixa");
+            abrirCaixaBtn.setBackground(new Color(100, 200, 100));
+        }
+
+        // Atualizar botão de remover caixa
+        if (caixas.size() <= CAIXAS_FIXOS) {
+            removerCaixaBtn.setEnabled(false);
+            removerCaixaBtn.setText("🔒 APENAS FIXOS");
+            removerCaixaBtn.setBackground(new Color(150, 150, 150));
+        } else {
+            removerCaixaBtn.setEnabled(true);
+            removerCaixaBtn.setText("➖ Remover Caixa");
+            removerCaixaBtn.setBackground(new Color(200, 100, 100));
         }
     }
 
     private JPanel criarPainelCaixa(int numeroCaixa) {
         JPanel panel = new JPanel(new BorderLayout());
+        
+        // Determinar se é caixa fixo ou dinâmico
+        boolean isFixo = numeroCaixa <= CAIXAS_FIXOS;
+        Color corBorda = isFixo ? new Color(0, 150, 0) : new Color(150, 150, 150);
+        Color corFundo = isFixo ? new Color(220, 255, 220) : new Color(230, 245, 255);
+        
         panel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(150, 150, 150), 2),
+                BorderFactory.createLineBorder(corBorda, isFixo ? 3 : 2),
                 BorderFactory.createEmptyBorder(10, 10, 10, 10)
         ));
-        panel.setBackground(new Color(230, 245, 255));
+        panel.setBackground(corFundo);
         panel.setPreferredSize(new Dimension(800, 120));
 
-        // Título do caixa
-        JLabel tituloCaixa = new JLabel("CAIXA " + numeroCaixa, SwingConstants.CENTER);
+        // Título do caixa com indicação de tipo
+        String tituloTexto = "CAIXA " + numeroCaixa + (isFixo ? " (FIXO)" : " (DINÂMICO)");
+        JLabel tituloCaixa = new JLabel(tituloTexto, SwingConstants.CENTER);
         tituloCaixa.setFont(new Font("Arial", Font.BOLD, 16));
-        tituloCaixa.setForeground(new Color(0, 80, 150));
+        tituloCaixa.setForeground(isFixo ? new Color(0, 100, 0) : new Color(0, 80, 150));
         tituloCaixa.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
 
         // Painel de status
         JPanel statusPanel = new JPanel(new GridLayout(2, 1, 5, 5));
-        statusPanel.setBackground(new Color(230, 245, 255));
+        statusPanel.setBackground(corFundo);
 
         JLabel statusLabel = new JLabel("🔴 AGUARDANDO CLIENTE", SwingConstants.CENTER);
         statusLabel.setFont(new Font("Arial", Font.BOLD, 14));

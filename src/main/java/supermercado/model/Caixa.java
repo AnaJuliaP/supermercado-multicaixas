@@ -91,4 +91,8 @@ public class Caixa implements Runnable {
     public void encerrar() {
         ativo = false;
     }
+
+    public int getId() {
+        return id;
+    }
 }
