@@ -7,18 +7,18 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class Main extends JFrame {
     private JTextArea logArea;
     private JPanel caixasPanel;
     private JButton abrirCaixaBtn;
     private JButton removerCaixaBtn;
+    private JLabel filaLabel;
     private BlockingQueue<Cliente> filaClientes = new LinkedBlockingQueue<>();
-    private AtomicInteger caixaCounter = new AtomicInteger(0);
     private java.util.List<Caixa> caixas = new java.util.ArrayList<>();
     private static final int LIMITE_CAIXAS = 10;
     private static final int CAIXAS_FIXOS = 2; // Dois primeiros caixas são fixos
+    private JTextArea filaClientesArea;
 
     public Main() {
         setTitle("Simulação de Supermercado - Threads Paralelas");
@@ -56,7 +56,7 @@ public class Main extends JFrame {
         JPanel controlPanel = new JPanel();
         controlPanel.setBackground(new Color(240, 240, 240));
         controlPanel.setBorder(BorderFactory.createTitledBorder("Controles"));
-        controlPanel.setLayout(new FlowLayout());
+        controlPanel.setLayout(new BoxLayout(controlPanel, BoxLayout.Y_AXIS));
 
         abrirCaixaBtn = new JButton("➕ Abrir Novo Caixa");
         abrirCaixaBtn.setBackground(new Color(100, 200, 100));
@@ -67,6 +67,19 @@ public class Main extends JFrame {
         removerCaixaBtn.setBackground(new Color(200, 100, 100));
         removerCaixaBtn.setForeground(Color.WHITE);
         removerCaixaBtn.setFont(new Font("Arial", Font.BOLD, 14));
+
+        // Inicialização correta do campo, sem redeclaração
+        filaClientesArea = new JTextArea(10, 20);
+        filaClientesArea.setEditable(false);
+        filaClientesArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
+        JScrollPane filaScroll = new JScrollPane(filaClientesArea);
+        filaScroll.setBorder(BorderFactory.createTitledBorder("Fila de Espera"));
+        controlPanel.add(filaScroll);
+
+        // Adiciona o JLabel da fila
+        filaLabel = new JLabel("Fila de clientes: 0");
+        filaLabel.setFont(new Font("Arial", Font.BOLD, 16));
+        controlPanel.add(filaLabel);
 
         controlPanel.add(abrirCaixaBtn);
         controlPanel.add(removerCaixaBtn);
@@ -90,6 +103,40 @@ public class Main extends JFrame {
         // Criar dois caixas iniciais (fixos)
         abrirNovoCaixa();
         abrirNovoCaixa();
+
+        // Iniciar thread de geração de clientes aleatórios
+        iniciarGeradorDeClientes();
+    }
+
+    private void iniciarGeradorDeClientes() {
+        Thread gerador = new Thread(() -> {
+            while (true) {
+                try {
+                    Thread.sleep(1000 + (int)(Math.random() * 2000)); // 1 a 3 segundos
+                    Cliente novoCliente = supermercado.service.GerarCliente.gerarClientesAleatorios(1).get(0);
+                    filaClientes.put(novoCliente);
+                    log("👤 Novo cliente chegou: " + novoCliente.getNome());
+                    atualizarFilaLabel();
+                } catch (InterruptedException e) {
+                    break;
+                }
+            }
+        });
+        gerador.setDaemon(true);
+        gerador.start();
+    }
+
+    private void atualizarFilaLabel() {
+        SwingUtilities.invokeLater(() -> {
+            filaLabel.setText("Fila de clientes: " + filaClientes.size());
+            StringBuilder sb = new StringBuilder();
+            long agora = System.currentTimeMillis();
+            for (Cliente c : filaClientes) {
+                long espera = (agora - c.getTempoChegadaFila()) / 1000;
+                sb.append(c.getNome()).append(" - Espera: ").append(espera).append("s\n");
+            }
+            filaClientesArea.setText(sb.toString());
+        });
     }
 
     private void abrirNovoCaixa() {
