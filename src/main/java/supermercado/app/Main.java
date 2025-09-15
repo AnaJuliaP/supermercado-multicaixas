@@ -62,11 +62,21 @@ public class Main extends JFrame {
         abrirCaixaBtn.setBackground(new Color(100, 200, 100));
         abrirCaixaBtn.setForeground(Color.WHITE);
         abrirCaixaBtn.setFont(new Font("Arial", Font.BOLD, 14));
+        abrirCaixaBtn.setPreferredSize(new Dimension(200, 30));
+        abrirCaixaBtn.setMaximumSize(new Dimension(200, 30));
 
         removerCaixaBtn = new JButton("➖ Remover Caixa");
         removerCaixaBtn.setBackground(new Color(200, 100, 100));
         removerCaixaBtn.setForeground(Color.WHITE);
         removerCaixaBtn.setFont(new Font("Arial", Font.BOLD, 14));
+        removerCaixaBtn.setPreferredSize(new Dimension(200, 30));
+        removerCaixaBtn.setMaximumSize(new Dimension(200, 30));
+
+        // Adicionar botões primeiro (acima da fila de espera)
+        controlPanel.add(abrirCaixaBtn);
+        controlPanel.add(Box.createVerticalStrut(10)); 
+        controlPanel.add(removerCaixaBtn);
+        controlPanel.add(Box.createVerticalStrut(10)); 
 
         // Inicialização correta do campo, sem redeclaração
         filaClientesArea = new JTextArea(10, 20);
@@ -80,9 +90,6 @@ public class Main extends JFrame {
         filaLabel = new JLabel("Fila de clientes: 0");
         filaLabel.setFont(new Font("Arial", Font.BOLD, 16));
         controlPanel.add(filaLabel);
-
-        controlPanel.add(abrirCaixaBtn);
-        controlPanel.add(removerCaixaBtn);
         add(controlPanel, BorderLayout.WEST);
 
         // Eventos
