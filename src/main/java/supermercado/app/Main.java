@@ -22,7 +22,7 @@ public class Main extends JFrame {
 
     public Main() {
         setTitle("Simulação de Supermercado - Threads Paralelas");
-        setSize(900, 1200);
+        setSize(1000, 1200);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
@@ -38,9 +38,20 @@ public class Main extends JFrame {
         // Painel de caixas com scroll
         caixasPanel = new JPanel();
         caixasPanel.setLayout(new BoxLayout(caixasPanel, BoxLayout.Y_AXIS));
-        caixasPanel.setBackground(new Color(240, 240, 240));
+        caixasPanel.setBackground(new Color(248, 250, 252));
         JScrollPane scrollPane = new JScrollPane(caixasPanel);
-        scrollPane.setBorder(BorderFactory.createTitledBorder("Caixas em Operação"));
+        scrollPane.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createTitledBorder(
+                BorderFactory.createLineBorder(new Color(200, 200, 200), 2),
+                "🏪 Caixas em Operação",
+                javax.swing.border.TitledBorder.LEFT,
+                javax.swing.border.TitledBorder.TOP,
+                new Font("Segoe UI", Font.BOLD, 16),
+                new Color(50, 50, 50)
+            ),
+            BorderFactory.createEmptyBorder(15, 15, 15, 15)
+        ));
+        scrollPane.setBackground(new Color(248, 250, 252));
         add(scrollPane, BorderLayout.CENTER);
 
         // Área de log
@@ -54,23 +65,45 @@ public class Main extends JFrame {
 
         // Painel de controles
         JPanel controlPanel = new JPanel();
-        controlPanel.setBackground(new Color(240, 240, 240));
-        controlPanel.setBorder(BorderFactory.createTitledBorder("Controles"));
+        controlPanel.setBackground(new Color(248, 250, 252));
+        controlPanel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createTitledBorder(
+                BorderFactory.createLineBorder(new Color(200, 200, 200), 2),
+                "🎛️ Controles",
+                javax.swing.border.TitledBorder.LEFT,
+                javax.swing.border.TitledBorder.TOP,
+                new Font("Segoe UI", Font.BOLD, 16),
+                new Color(50, 50, 50)
+            ),
+            BorderFactory.createEmptyBorder(20, 20, 20, 20)
+        ));
         controlPanel.setLayout(new BoxLayout(controlPanel, BoxLayout.Y_AXIS));
 
+        // Botão Abrir Caixa com estilo moderno
         abrirCaixaBtn = new JButton("➕ Abrir Novo Caixa");
-        abrirCaixaBtn.setBackground(new Color(100, 200, 100));
+        abrirCaixaBtn.setBackground(new Color(46, 204, 113)); // Verde moderno
         abrirCaixaBtn.setForeground(Color.WHITE);
-        abrirCaixaBtn.setFont(new Font("Arial", Font.BOLD, 14));
-        abrirCaixaBtn.setPreferredSize(new Dimension(200, 30));
-        abrirCaixaBtn.setMaximumSize(new Dimension(200, 30));
+        abrirCaixaBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        abrirCaixaBtn.setPreferredSize(new Dimension(220, 45));
+        abrirCaixaBtn.setMaximumSize(new Dimension(220, 45));
+        abrirCaixaBtn.setFocusPainted(false);
+        abrirCaixaBtn.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createRaisedBevelBorder(),
+            BorderFactory.createEmptyBorder(12, 16, 12, 16)
+        ));
 
+        // Botão Remover Caixa com estilo moderno
         removerCaixaBtn = new JButton("➖ Remover Caixa");
-        removerCaixaBtn.setBackground(new Color(200, 100, 100));
+        removerCaixaBtn.setBackground(new Color(231, 76, 60)); // Vermelho moderno
         removerCaixaBtn.setForeground(Color.WHITE);
-        removerCaixaBtn.setFont(new Font("Arial", Font.BOLD, 14));
-        removerCaixaBtn.setPreferredSize(new Dimension(200, 30));
-        removerCaixaBtn.setMaximumSize(new Dimension(200, 30));
+        removerCaixaBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        removerCaixaBtn.setPreferredSize(new Dimension(220, 45));
+        removerCaixaBtn.setMaximumSize(new Dimension(220, 45));
+        removerCaixaBtn.setFocusPainted(false);
+        removerCaixaBtn.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createRaisedBevelBorder(),
+            BorderFactory.createEmptyBorder(12, 16, 12, 16)
+        ));
 
         // Adicionar botões primeiro (acima da fila de espera)
         controlPanel.add(abrirCaixaBtn);
@@ -79,16 +112,31 @@ public class Main extends JFrame {
         controlPanel.add(Box.createVerticalStrut(10)); 
 
         // Inicialização correta do campo, sem redeclaração
-        filaClientesArea = new JTextArea(10, 20);
+        filaClientesArea = new JTextArea(8, 20);
         filaClientesArea.setEditable(false);
-        filaClientesArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
+        filaClientesArea.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        filaClientesArea.setBackground(new Color(255, 255, 255));
+        filaClientesArea.setForeground(new Color(50, 50, 50));
+        filaClientesArea.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
         JScrollPane filaScroll = new JScrollPane(filaClientesArea);
-        filaScroll.setBorder(BorderFactory.createTitledBorder("Fila de Espera"));
+        filaScroll.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createTitledBorder(
+                BorderFactory.createLineBorder(new Color(180, 180, 180), 1),
+                "⏳ Fila de Espera",
+                javax.swing.border.TitledBorder.LEFT,
+                javax.swing.border.TitledBorder.TOP,
+                new Font("Segoe UI", Font.BOLD, 12),
+                new Color(70, 70, 70)
+            ),
+            BorderFactory.createEmptyBorder(5, 5, 5, 5)
+        ));
         controlPanel.add(filaScroll);
 
-        // Adiciona o JLabel da fila
-        filaLabel = new JLabel("Fila de clientes: 0");
-        filaLabel.setFont(new Font("Arial", Font.BOLD, 16));
+        // Adiciona o JLabel da fila com estilo moderno
+        filaLabel = new JLabel("👥 Fila de clientes: 0");
+        filaLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        filaLabel.setForeground(new Color(50, 50, 50));
+        filaLabel.setBorder(BorderFactory.createEmptyBorder(10, 0, 5, 0));
         controlPanel.add(filaLabel);
         add(controlPanel, BorderLayout.WEST);
 
@@ -234,22 +282,22 @@ public class Main extends JFrame {
         if (caixas.size() >= LIMITE_CAIXAS) {
             abrirCaixaBtn.setEnabled(false);
             abrirCaixaBtn.setText("❌ LIMITE ATINGIDO");
-            abrirCaixaBtn.setBackground(new Color(200, 100, 100));
+            abrirCaixaBtn.setBackground(new Color(149, 165, 166));
         } else {
             abrirCaixaBtn.setEnabled(true);
             abrirCaixaBtn.setText("➕ Abrir Novo Caixa");
-            abrirCaixaBtn.setBackground(new Color(100, 200, 100));
+            abrirCaixaBtn.setBackground(new Color(46, 204, 113));
         }
 
         // Atualizar botão de remover caixa
         if (caixas.size() <= CAIXAS_FIXOS) {
             removerCaixaBtn.setEnabled(false);
             removerCaixaBtn.setText("🔒 APENAS FIXOS");
-            removerCaixaBtn.setBackground(new Color(150, 150, 150));
+            removerCaixaBtn.setBackground(new Color(149, 165, 166));
         } else {
             removerCaixaBtn.setEnabled(true);
             removerCaixaBtn.setText("➖ Remover Caixa");
-            removerCaixaBtn.setBackground(new Color(200, 100, 100));
+            removerCaixaBtn.setBackground(new Color(231, 76, 60));
         }
     }
 
@@ -258,35 +306,38 @@ public class Main extends JFrame {
         
         // Determinar se é caixa fixo ou dinâmico
         boolean isFixo = numeroCaixa <= CAIXAS_FIXOS;
-        Color corBorda = isFixo ? new Color(0, 150, 0) : new Color(150, 150, 150);
-        Color corFundo = isFixo ? new Color(220, 255, 220) : new Color(230, 245, 255);
+        Color corBorda = isFixo ? new Color(46, 204, 113) : new Color(52, 152, 219);
+        Color corFundo = isFixo ? new Color(236, 252, 203) : new Color(235, 245, 255);
         
         panel.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(corBorda, isFixo ? 3 : 2),
-                BorderFactory.createEmptyBorder(10, 10, 10, 10)
+                BorderFactory.createEmptyBorder(15, 15, 15, 15)
         ));
         panel.setBackground(corFundo);
-        panel.setPreferredSize(new Dimension(800, 120));
+        panel.setPreferredSize(new Dimension(850, 130));
 
         // Título do caixa com indicação de tipo
-        String tituloTexto = "CAIXA " + numeroCaixa + (isFixo ? " (FIXO)" : " (DINÂMICO)");
+        String tituloTexto = "🏪 CAIXA " + numeroCaixa + (isFixo ? " (FIXO)" : " (DINÂMICO)");
         JLabel tituloCaixa = new JLabel(tituloTexto, SwingConstants.CENTER);
-        tituloCaixa.setFont(new Font("Arial", Font.BOLD, 16));
-        tituloCaixa.setForeground(isFixo ? new Color(0, 100, 0) : new Color(0, 80, 150));
-        tituloCaixa.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
+        tituloCaixa.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        tituloCaixa.setForeground(isFixo ? new Color(39, 174, 96) : new Color(41, 128, 185));
+        tituloCaixa.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
 
         // Painel de status
-        JPanel statusPanel = new JPanel(new GridLayout(2, 1, 5, 5));
+        JPanel statusPanel = new JPanel(new GridLayout(2, 1, 8, 8));
         statusPanel.setBackground(corFundo);
 
         JLabel statusLabel = new JLabel("🔴 AGUARDANDO CLIENTE", SwingConstants.CENTER);
-        statusLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        statusLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        statusLabel.setForeground(new Color(231, 76, 60));
 
         JProgressBar progressBar = new JProgressBar(0, 100);
         progressBar.setValue(0);
         progressBar.setStringPainted(true);
-        progressBar.setForeground(new Color(0, 150, 0));
+        progressBar.setForeground(new Color(46, 204, 113));
+        progressBar.setBackground(new Color(236, 240, 241));
         progressBar.setString("0%");
+        progressBar.setFont(new Font("Segoe UI", Font.BOLD, 11));
 
         statusPanel.add(statusLabel);
         statusPanel.add(progressBar);
