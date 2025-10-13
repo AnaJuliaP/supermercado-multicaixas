@@ -13,71 +13,125 @@ public class Caixa implements Runnable {
     private JPanel caixaPanel;
     private volatile boolean ativo = true;
     private final Random random = new Random();
+    private Cofre cofre; 
+    private Runnable atualizarFilaCallback;
+    private boolean sincronismo = false;
+    private long tempoInicio;
+    private long tempoTotalAtendimento = 0;
+    private int clientesAtendidos = 0; 
 
-    public Caixa(int id, BlockingQueue<Cliente> fila, JTextArea logArea, JPanel caixaPanel) {
+    public Caixa(int id, BlockingQueue<Cliente> fila, JTextArea logArea, JPanel caixaPanel, Cofre cofre, Runnable atualizarFilaCallback, boolean sincronismo) {
         this.id = id;
         this.fila = fila;
         this.logArea = logArea;
         this.caixaPanel = caixaPanel;
+        this.cofre = cofre;
+        this.atualizarFilaCallback = atualizarFilaCallback;
+        this.sincronismo = sincronismo;
+        // Propagar configuração para o cofre também
+        if (this.cofre != null) {
+            this.cofre.setSincronismo(this.sincronismo);
+        }
     }
 
     @Override
     public void run() {
+        tempoInicio = System.currentTimeMillis();
         while (ativo) {
             try {
-                // Gerar cliente aleatório se a fila estiver vazia
+                // 🧍‍♀️ Gera cliente se a fila estiver vazia
                 if (fila.isEmpty()) {
                     Cliente novoCliente = GerarCliente.gerarClientesAleatorios(1).get(0);
                     fila.put(novoCliente);
                 }
 
-                // Processar cliente
                 Cliente cliente = fila.take();
+                long inicioAtendimento = System.currentTimeMillis();
                 atualizarStatus("🟢 ATENDENDO: " + cliente.getNome());
                 log("📌 Caixa " + id + " iniciou atendimento: " + cliente.getNome());
+                
+                if (atualizarFilaCallback != null) {
+                    atualizarFilaCallback.run();
+                }
 
                 int totalProdutos = cliente.getProdutos().size();
                 int produtosProcessados = 0;
 
                 for (Produto produto : cliente.getProdutos()) {
-                    Thread.sleep(produto.getTempoProcessamento());
+                    Thread.sleep(800);
                     produtosProcessados++;
 
                     int progresso = (int) ((produtosProcessados * 100.0) / totalProdutos);
                     atualizarProgresso(progresso);
 
                     log("➡️ Caixa " + id + " processou: " + produto.getNome() +
-                            " (" + produto.getTempoProcessamento() + "ms)");
+                            " (" + 800 + "ms)");
                 }
 
+                long fimAtendimento = System.currentTimeMillis();
+                long tempoAtendimento = fimAtendimento - inicioAtendimento;
+                tempoTotalAtendimento += tempoAtendimento;
+                clientesAtendidos++;
+                
                 log("✅ Caixa " + id + " finalizou: " + cliente.getNome() +
-                        " - Total: " + totalProdutos + " produtos");
+                        " - Total: " + totalProdutos + " produtos" +
+                        " - Tempo: " + (tempoAtendimento / 1000.0) + "s");
+
+                // 💰 Simula o valor total da compra
+                double totalCompra = cliente.getProdutos().stream()
+                        .mapToDouble(p -> p.getTempoProcessamento() / 1000.0)
+                        .sum();
+
+                try {
+                    Thread.sleep(500 + random.nextInt(500)); 
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+
+                // 💸 Deposita o valor no cofre (sem sincronização → erros de soma possíveis)
+                int valorInteiro = (int) Math.round(totalCompra);
+                log("🏃 Caixa " + id + " correndo para o cofre com R$ " + String.format("%.2f", totalCompra));
+                cofre.depositar(valorInteiro, id);
 
                 atualizarStatus("🔴 AGUARDANDO CLIENTE");
                 atualizarProgresso(0);
 
-                // Pequena pausa entre clientes
-                Thread.sleep(500);
+                Thread.sleep(1000);
 
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 break;
+            } catch (Exception e) {
+                log("⚠️ Erro no caixa " + id + ": " + e.getMessage());
             }
         }
+
+        atualizarStatus("⛔ CAIXA ENCERRADO");
+        atualizarProgresso(0);
     }
 
     private void atualizarStatus(String status) {
         SwingUtilities.invokeLater(() -> {
-            JLabel statusLabel = (JLabel) ((JPanel) caixaPanel.getComponent(1)).getComponent(0);
-            statusLabel.setText(status);
+            try {
+                JPanel statusPanel = (JPanel) caixaPanel.getComponent(1);
+                JLabel statusLabel = (JLabel) statusPanel.getComponent(0);
+                statusLabel.setText(status);
+            } catch (Exception e) {
+                log("⚠️ Erro ao atualizar status do caixa " + id);
+            }
         });
     }
 
     private void atualizarProgresso(int progresso) {
         SwingUtilities.invokeLater(() -> {
-            JProgressBar progressBar = (JProgressBar) ((JPanel) caixaPanel.getComponent(1)).getComponent(1);
-            progressBar.setValue(progresso);
-            progressBar.setString(progresso + "%");
+            try {
+                JPanel statusPanel = (JPanel) caixaPanel.getComponent(1);
+                JProgressBar progressBar = (JProgressBar) statusPanel.getComponent(1);
+                progressBar.setValue(progresso);
+                progressBar.setString(progresso + "%");
+            } catch (Exception e) {
+                log("⚠️ Erro ao atualizar progresso do caixa " + id);
+            }
         });
     }
 
@@ -94,5 +148,17 @@ public class Caixa implements Runnable {
 
     public int getId() {
         return id;
+    }
+    
+    public long getTempoTotalAtendimento() {
+        return tempoTotalAtendimento;
+    }
+    
+    public int getClientesAtendidos() {
+        return clientesAtendidos;
+    }
+    
+    public long getTempoMedioPorCliente() {
+        return clientesAtendidos > 0 ? tempoTotalAtendimento / clientesAtendidos : 0;
     }
 }

@@ -60,7 +60,7 @@ public class GerarCliente {
                 produtos.add(produto);
             }
 
-            clientes.add(new Cliente(nome, produtos, System.currentTimeMillis()));
+            clientes.add(new Cliente(nome, new ArrayList<Produto>(produtos), System.currentTimeMillis()));
 
         }
 
