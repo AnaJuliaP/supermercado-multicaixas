@@ -1,4 +1,3 @@
-// supermercado/model/Cliente.java
 package supermercado.model;
 
 import java.util.List;

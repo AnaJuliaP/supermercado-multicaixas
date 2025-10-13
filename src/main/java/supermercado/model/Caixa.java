@@ -15,17 +15,23 @@ public class Caixa implements Runnable {
     private final Random random = new Random();
     private Cofre cofre; 
     private Runnable atualizarFilaCallback;
+    private boolean sincronismo = false;
     private long tempoInicio;
     private long tempoTotalAtendimento = 0;
     private int clientesAtendidos = 0; 
 
-    public Caixa(int id, BlockingQueue<Cliente> fila, JTextArea logArea, JPanel caixaPanel, Cofre cofre, Runnable atualizarFilaCallback) {
+    public Caixa(int id, BlockingQueue<Cliente> fila, JTextArea logArea, JPanel caixaPanel, Cofre cofre, Runnable atualizarFilaCallback, boolean sincronismo) {
         this.id = id;
         this.fila = fila;
         this.logArea = logArea;
         this.caixaPanel = caixaPanel;
         this.cofre = cofre;
         this.atualizarFilaCallback = atualizarFilaCallback;
+        this.sincronismo = sincronismo;
+        // Propagar configuração para o cofre também
+        if (this.cofre != null) {
+            this.cofre.setSincronismo(this.sincronismo);
+        }
     }
 
     @Override

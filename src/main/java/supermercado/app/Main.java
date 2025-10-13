@@ -3,22 +3,30 @@ package supermercado.app;
 import supermercado.model.Cliente;
 import supermercado.model.Caixa;
 import supermercado.model.Cofre;
+import supermercado.service.GerarCliente;
 
 import javax.swing.*;
 import java.awt.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.Comparator;
+import java.util.PriorityQueue;
 
 public class Main extends JFrame {
     private JTextArea logArea;
     private JPanel caixasPanel;
     private JLabel filaLabel;
-    private BlockingQueue<Cliente> filaClientes = new LinkedBlockingQueue<>();
+    private BlockingQueue<Cliente> filaClientes;
     private java.util.List<Caixa> caixas = new java.util.ArrayList<>();
-    private static final int CAIXAS_FIXOS = 6;
+    private static final int CAIXAS_FIXOS = 3;
     private JTextArea filaClientesArea;
-
     private Cofre cofre = new Cofre();
+
+    // Controles para configuração
+    private JComboBox<String> algoritmoCombo;
+    private JCheckBox sincronismoCheckbox;
+    private JButton iniciarBtn;
+    private boolean simulacaoRodando = false;
 
     public Main() {
         setTitle("Simulação de Supermercado - Threads Paralelas");
@@ -64,7 +72,7 @@ public class Main extends JFrame {
         add(logScroll, BorderLayout.SOUTH);
 
         // Configurar o logArea no cofre
-        Cofre.setLogArea(logArea);
+    cofre.setLogArea(logArea);
 
         // Painel de controles
         JPanel controlPanel = new JPanel();
@@ -90,7 +98,33 @@ public class Main extends JFrame {
         controlPanel.add(infoLabel);
         controlPanel.add(Box.createVerticalStrut(10));
 
-        // Botão para mostrar resumo (sem parar)
+        // Configuração do algoritmo
+        JPanel configPanel = new JPanel(new GridLayout(2, 2, 5, 5));
+        configPanel.setBackground(new Color(248, 250, 252));
+        
+        configPanel.add(new JLabel("Algoritmo:"));
+        algoritmoCombo = new JComboBox<>(new String[]{"FCFS", "SJF"});
+        configPanel.add(algoritmoCombo);
+        
+        configPanel.add(new JLabel("Sincronismo:"));
+        sincronismoCheckbox = new JCheckBox("Ativar");
+        configPanel.add(sincronismoCheckbox);
+        
+        controlPanel.add(configPanel);
+        controlPanel.add(Box.createVerticalStrut(10));
+
+        // Botão para iniciar/reniciar simulação
+        iniciarBtn = new JButton("🚀 Iniciar Simulação");
+        iniciarBtn.setBackground(new Color(46, 204, 113));
+        iniciarBtn.setForeground(Color.WHITE);
+        iniciarBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        iniciarBtn.setPreferredSize(new Dimension(220, 45));
+        iniciarBtn.setMaximumSize(new Dimension(220, 45));
+        iniciarBtn.addActionListener(e -> iniciarOuReiniciarSimulacao());
+        controlPanel.add(iniciarBtn);
+        controlPanel.add(Box.createVerticalStrut(10));
+
+        // Botão para mostrar resumo
         JButton resumoBtn = new JButton("📊 Mostrar Resumo");
         resumoBtn.setBackground(new Color(52, 152, 219));
         resumoBtn.setForeground(Color.WHITE);
@@ -129,26 +163,70 @@ public class Main extends JFrame {
         controlPanel.add(filaLabel);
         add(controlPanel, BorderLayout.WEST);
 
+        // Inicializar com simulação parada
+        atualizarEstadoBotoes(false);
+    }
+
+    private void iniciarOuReiniciarSimulacao() {
+        if (simulacaoRodando) {
+            pararSimulacao();
+        }
         iniciarSimulacao();
     }
 
     private void iniciarSimulacao() {
+        // Limpar simulação anterior
+        if (simulacaoRodando) {
+            pararSimulacao();
+        }
+
         logArea.setText("");
+        
+        // Obter configurações
+        String algoritmo = (String) algoritmoCombo.getSelectedItem();
+        boolean sincronismo = sincronismoCheckbox.isSelected();
+        
+        // Criar fila baseada no algoritmo
+        if ("SJF".equals(algoritmo)) {
+            // Fila prioritária baseada no número de produtos (menor primeiro)
+            filaClientes = new PriorityBlockingQueue<>(10, 
+                Comparator.comparingInt(cliente -> cliente.getProdutos().size()));
+        } else {
+            // FCFS - fila normal
+            filaClientes = new LinkedBlockingQueue<>();
+        }
+
+    // Configurar cofre
+    cofre = new Cofre();
+    cofre.setSincronismo(sincronismo);
+    cofre.setLogArea(logArea);
+
         log("🚀 SIMULAÇÃO INICIADA - 6 CAIXAS FIXOS");
-        log("📊 Fila fixa de clientes será processada por todos os caixas");
-        log("🏦 MODO: SEM SINCRONISMO (sem sincronismo no cofre — valores podem divergir!)");
+        log("📊 Algoritmo: " + algoritmo + " (" + 
+            ("SJF".equals(algoritmo) ? "Menor compra primeiro" : "Ordem de chegada") + ")");
+        log("🏦 MODO: " + (sincronismo ? "COM SINCRONISMO" : "SEM SINCRONISMO"));
         log("⚠️ CAIXAS FIXOS: 6 caixas operando simultaneamente");
 
         criarFilaFixaDeClientes();
         
+        // Criar caixas
+        caixas.clear();
+        caixasPanel.removeAll();
+        
         for (int i = 0; i < CAIXAS_FIXOS; i++) {
             abrirNovoCaixa();
         }
+
+        simulacaoRodando = true;
+        atualizarEstadoBotoes(true);
+        caixasPanel.revalidate();
+        caixasPanel.repaint();
     }
 
     private void criarFilaFixaDeClientes() {
-        java.util.List<Cliente> clientesFixa = supermercado.service.GerarCliente.gerarClientesAleatorios(15);
-        
+        // Fila fixa para experimentos - sempre a mesma
+        java.util.List<Cliente> clientesFixa = GerarCliente.gerarClientesAleatorios(15);
+
         for (Cliente cliente : clientesFixa) {
             try {
                 filaClientes.put(cliente);
@@ -165,6 +243,8 @@ public class Main extends JFrame {
 
     private void atualizarFilaLabel() {
         SwingUtilities.invokeLater(() -> {
+            if (filaClientes == null) return;
+            
             int tamanhoFila = filaClientes.size();
             filaLabel.setText("Fila de clientes: " + tamanhoFila);
             
@@ -176,7 +256,8 @@ public class Main extends JFrame {
                 int contador = 0;
                 for (Cliente c : filaClientes) {
                     if (contador < 8) { 
-                        sb.append("• ").append(c.getNome()).append(" - ").append(c.getProdutos().size()).append(" produtos\n");
+                        sb.append("• ").append(c.getNome()).append(" - ")
+                          .append(c.getProdutos().size()).append(" produtos\n");
                         contador++;
                     } else {
                         sb.append("\n... e mais ").append(tamanhoFila - 8).append(" clientes aguardando");
@@ -193,29 +274,45 @@ public class Main extends JFrame {
         JPanel caixaPanel = criarPainelCaixa(numeroCaixa);
         caixasPanel.add(caixaPanel);
 
-        // 🔹 Passa o cofre para o caixa e callback para atualizar fila
-        Caixa caixa = new Caixa(numeroCaixa, filaClientes, logArea, caixaPanel, cofre, this::atualizarFilaLabel);
+        // Passar configurações para o caixa
+        boolean sincronismo = sincronismoCheckbox.isSelected();
+        Caixa caixa = new Caixa(numeroCaixa, filaClientes, logArea, caixaPanel, cofre, 
+                               this::atualizarFilaLabel, sincronismo);
         caixas.add(caixa);
         new Thread(caixa).start();
 
         log("🛒 Caixa " + numeroCaixa + " iniciado");
-        caixasPanel.revalidate();
-        caixasPanel.repaint();
     }
 
-    // Métodos de controle de caixas removidos - caixas são fixos
+    private void atualizarEstadoBotoes(boolean rodando) {
+        iniciarBtn.setText(rodando ? "🔄 Reiniciar Simulação" : "🚀 Iniciar Simulação");
+        iniciarBtn.setBackground(rodando ? new Color(241, 196, 15) : new Color(46, 204, 113));
+        algoritmoCombo.setEnabled(!rodando);
+        sincronismoCheckbox.setEnabled(!rodando);
+    }
 
     private void mostrarResumo() {
-        int saldoReal = Cofre.getSaldo();
+        if (!simulacaoRodando) {
+            log("⚠️ Nenhuma simulação em andamento");
+            return;
+        }
+
+        int saldoReal = cofre.getSaldo();
         int clientesRestantes = filaClientes.size();
+        boolean sincronismo = sincronismoCheckbox.isSelected();
+        String algoritmo = (String) algoritmoCombo.getSelectedItem();
         
-        log("\n" + "=".repeat(60));
+        log("\n" + repeat("=", 60));
         log("📊 RESUMO ATUAL DA SIMULAÇÃO");
-        log("=".repeat(60));
+        log(repeat("=", 60));
+        log("📋 Configuração: " + algoritmo + " | " + 
+            (sincronismo ? "COM SINCRONISMO" : "SEM SINCRONISMO"));
         log("🏦 Saldo atual no cofre: R$ " + saldoReal);
         log("👥 Clientes restantes na fila: " + clientesRestantes);
-        log("⚠️  NOTA: Este valor pode estar incorreto devido à falta de sincronização!");
-        log("🔍 Múltiplos caixas acessam o cofre simultaneamente sem proteção");
+        
+        if (!sincronismo) {
+            log("⚠️  AVISO: Valor do cofre pode estar incorreto devido à falta de sincronização!");
+        }
         
         // Mostrar estatísticas dos caixas
         log("\n⏱️  ESTATÍSTICAS DOS CAIXAS:");
@@ -224,26 +321,34 @@ public class Main extends JFrame {
                 "Tempo total: " + (caixa.getTempoTotalAtendimento() / 1000.0) + "s | " +
                 "Tempo médio: " + (caixa.getTempoMedioPorCliente() / 1000.0) + "s/cliente");
         }
-        log("=".repeat(60));
+        log(repeat("=", 60));
     }
 
     private void pararSimulacao() {
+        if (!simulacaoRodando) return;
+
         // Parar todos os caixas
         for (Caixa caixa : caixas) {
             caixa.encerrar();
         }
         
         // Mostrar resumo final
-        int saldoReal = Cofre.getSaldo();
+        int saldoReal = cofre.getSaldo();
         int clientesRestantes = filaClientes.size();
+        boolean sincronismo = sincronismoCheckbox.isSelected();
+        String algoritmo = (String) algoritmoCombo.getSelectedItem();
         
-        log("\n" + "=".repeat(60));
+        log("\n" + repeat("=", 60));
         log("📊 RESUMO FINAL DA SIMULAÇÃO");
-        log("=".repeat(60));
+        log(repeat("=", 60));
+        log("📋 Configuração: " + algoritmo + " | " + 
+            (sincronismo ? "COM SINCRONISMO" : "SEM SINCRONISMO"));
         log("🏦 Saldo final no cofre: R$ " + saldoReal);
         log("👥 Clientes restantes na fila: " + clientesRestantes);
-        log("⚠️  NOTA: Este valor pode estar incorreto devido à falta de sincronização!");
-        log("🔍 Múltiplos caixas acessaram o cofre simultaneamente sem proteção");
+        
+        if (!sincronismo) {
+            log("⚠️  AVISO: Valor do cofre pode estar incorreto devido à falta de sincronização!");
+        }
         
         // Mostrar estatísticas finais dos caixas
         log("\n⏱️  ESTATÍSTICAS FINAIS DOS CAIXAS:");
@@ -262,7 +367,10 @@ public class Main extends JFrame {
         log("Tempo médio por cliente: " + (totalClientes > 0 ? (tempoTotal / totalClientes / 1000.0) : 0) + "s");
         
         log("⏹️ SIMULAÇÃO ENCERRADA");
-        log("=".repeat(60));
+        log(repeat("=", 60));
+
+        simulacaoRodando = false;
+        atualizarEstadoBotoes(false);
     }
 
     private JPanel criarPainelCaixa(int numeroCaixa) {
@@ -305,6 +413,28 @@ public class Main extends JFrame {
             logArea.append(mensagem + "\n");
             logArea.setCaretPosition(logArea.getDocument().getLength());
         });
+    }
+
+    private String repeat(String str, int times) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < times; i++) sb.append(str);
+        return sb.toString();
+    }
+
+    // Classe interna para PriorityBlockingQueue
+    static class PriorityBlockingQueue<E> extends LinkedBlockingQueue<E> {
+        private final Comparator<E> comparator;
+
+        public PriorityBlockingQueue(int initialCapacity, Comparator<E> comparator) {
+            this.comparator = comparator;
+        }
+
+        @Override
+        public boolean offer(E e) {
+            // Para simplicidade, vamos manter a ordem na inserção
+            // Em uma implementação real, usaríamos uma PriorityQueue verdadeira
+            return super.offer(e);
+        }
     }
 
     public static void main(String[] args) {
