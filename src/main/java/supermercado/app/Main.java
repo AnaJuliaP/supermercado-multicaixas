@@ -292,34 +292,40 @@ public class Main extends JFrame {
     }
 
     private void mostrarResumo() {
-        if (!simulacaoRodando) {
-            log("⚠️ Nenhuma simulação em andamento");
+        // Verificar se há dados para mostrar
+        if (cofre == null && caixas.isEmpty()) {
+            log("⚠️ Nenhuma simulação foi executada ainda");
             return;
         }
 
-        int saldoReal = cofre.getSaldo();
-        int clientesRestantes = filaClientes.size();
+        int saldoReal = cofre != null ? cofre.getSaldo() : 0;
+        int clientesRestantes = filaClientes != null ? filaClientes.size() : 0;
         boolean sincronismo = sincronismoCheckbox.isSelected();
         String algoritmo = (String) algoritmoCombo.getSelectedItem();
         
         log("\n" + repeat("=", 60));
-        log("📊 RESUMO ATUAL DA SIMULAÇÃO");
+        log("📊 RESUMO DA SIMULAÇÃO");
         log(repeat("=", 60));
         log("📋 Configuração: " + algoritmo + " | " + 
             (sincronismo ? "COM SINCRONISMO" : "SEM SINCRONISMO"));
         log("🏦 Saldo atual no cofre: R$ " + saldoReal);
         log("👥 Clientes restantes na fila: " + clientesRestantes);
+        log("🔄 Status da simulação: " + (simulacaoRodando ? "EM ANDAMENTO" : "PARADA"));
         
-        if (!sincronismo) {
+        if (!sincronismo && simulacaoRodando) {
             log("⚠️  AVISO: Valor do cofre pode estar incorreto devido à falta de sincronização!");
         }
         
         // Mostrar estatísticas dos caixas
-        log("\n⏱️  ESTATÍSTICAS DOS CAIXAS:");
-        for (Caixa caixa : caixas) {
-            log("Caixa " + caixa.getId() + ": " + caixa.getClientesAtendidos() + " clientes | " +
-                "Tempo total: " + (caixa.getTempoTotalAtendimento() / 1000.0) + "s | " +
-                "Tempo médio: " + (caixa.getTempoMedioPorCliente() / 1000.0) + "s/cliente");
+        if (!caixas.isEmpty()) {
+            log("\n⏱️  ESTATÍSTICAS DOS CAIXAS:");
+            for (Caixa caixa : caixas) {
+                log("Caixa " + caixa.getId() + ": " + caixa.getClientesAtendidos() + " clientes | " +
+                    "Tempo total: " + (caixa.getTempoTotalAtendimento() / 1000.0) + "s | " +
+                    "Tempo médio: " + (caixa.getTempoMedioPorCliente() / 1000.0) + "s/cliente");
+            }
+        } else {
+            log("\n⏱️  Nenhum caixa foi criado ainda");
         }
         log(repeat("=", 60));
     }
