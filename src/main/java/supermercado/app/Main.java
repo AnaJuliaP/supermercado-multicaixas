@@ -27,6 +27,7 @@ public class Main extends JFrame {
     private JCheckBox sincronismoCheckbox;
     private JButton iniciarBtn;
     private boolean simulacaoRodando = false;
+    private boolean simulacaoExecutada = false;
 
     public Main() {
         setTitle("Simulação de Supermercado - Threads Paralelas");
@@ -91,7 +92,7 @@ public class Main extends JFrame {
         controlPanel.setLayout(new BoxLayout(controlPanel, BoxLayout.Y_AXIS));
 
         // Informação sobre caixas fixos
-        JLabel infoLabel = new JLabel("🏪 6 CAIXAS FIXOS");
+        JLabel infoLabel = new JLabel("🏪 3 CAIXAS FIXOS");
         infoLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
         infoLabel.setForeground(new Color(50, 50, 50));
         infoLabel.setHorizontalAlignment(SwingConstants.CENTER);
@@ -218,6 +219,7 @@ public class Main extends JFrame {
         }
 
         simulacaoRodando = true;
+        simulacaoExecutada = true;
         atualizarEstadoBotoes(true);
         caixasPanel.revalidate();
         caixasPanel.repaint();
@@ -237,7 +239,7 @@ public class Main extends JFrame {
         }
         
         log("👥 Fila fixa criada com " + filaClientes.size() + " clientes");
-        log("🔄 Todos os 6 caixas vão processar esta mesma fila");
+        log("🔄 Todos os 3 caixas vão processar esta mesma fila");
         atualizarFilaLabel();
     }
 
@@ -251,6 +253,8 @@ public class Main extends JFrame {
             StringBuilder sb = new StringBuilder();
             if (tamanhoFila == 0) {
                 sb.append("🎉 FILA VAZIA - Todos os clientes foram atendidos!");
+                // Verificar se todos os caixas devem parar
+                verificarSeTodosCaixasDevemParar();
             } else {
                 sb.append("👥 Clientes restantes na fila:\n\n");
                 int contador = 0;
@@ -267,6 +271,25 @@ public class Main extends JFrame {
             }
             filaClientesArea.setText(sb.toString());
         });
+    }
+
+    private void verificarSeTodosCaixasDevemParar() {
+        // Aguardar um pouco para garantir que todos os caixas tenham tempo de processar
+        new Thread(() -> {
+            try {
+                Thread.sleep(2000); // Aguarda 2 segundos
+                
+                // Verificar se a fila ainda está vazia e se a simulação ainda está rodando
+                if (simulacaoRodando && filaClientes.isEmpty()) {
+                    log("🏁 Todos os clientes foram atendidos - encerrando simulação automaticamente");
+                    SwingUtilities.invokeLater(() -> {
+                        pararSimulacao();
+                    });
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }).start();
     }
 
     private void abrirNovoCaixa() {
@@ -292,72 +315,30 @@ public class Main extends JFrame {
     }
 
     private void mostrarResumo() {
-        // Verificar se há dados para mostrar
-        if (cofre == null && caixas.isEmpty()) {
+        if (!simulacaoExecutada) {
             log("⚠️ Nenhuma simulação foi executada ainda");
             return;
         }
 
-        int saldoReal = cofre != null ? cofre.getSaldo() : 0;
-        int clientesRestantes = filaClientes != null ? filaClientes.size() : 0;
-        boolean sincronismo = sincronismoCheckbox.isSelected();
-        String algoritmo = (String) algoritmoCombo.getSelectedItem();
-        
-        log("\n" + repeat("=", 60));
-        log("📊 RESUMO DA SIMULAÇÃO");
-        log(repeat("=", 60));
-        log("📋 Configuração: " + algoritmo + " | " + 
-            (sincronismo ? "COM SINCRONISMO" : "SEM SINCRONISMO"));
-        log("🏦 Saldo atual no cofre: R$ " + saldoReal);
-        log("👥 Clientes restantes na fila: " + clientesRestantes);
-        log("🔄 Status da simulação: " + (simulacaoRodando ? "EM ANDAMENTO" : "PARADA"));
-        
-        if (!sincronismo && simulacaoRodando) {
-            log("⚠️  AVISO: Valor do cofre pode estar incorreto devido à falta de sincronização!");
-        }
-        
-        // Mostrar estatísticas dos caixas
-        if (!caixas.isEmpty()) {
-            log("\n⏱️  ESTATÍSTICAS DOS CAIXAS:");
-            for (Caixa caixa : caixas) {
-                log("Caixa " + caixa.getId() + ": " + caixa.getClientesAtendidos() + " clientes | " +
-                    "Tempo total: " + (caixa.getTempoTotalAtendimento() / 1000.0) + "s | " +
-                    "Tempo médio: " + (caixa.getTempoMedioPorCliente() / 1000.0) + "s/cliente");
-            }
-        } else {
-            log("\n⏱️  Nenhum caixa foi criado ainda");
-        }
-        log(repeat("=", 60));
-    }
-
-    private void pararSimulacao() {
-        if (!simulacaoRodando) return;
-
-        // Parar todos os caixas
-        for (Caixa caixa : caixas) {
-            caixa.encerrar();
-        }
-        
-        // Mostrar resumo final
         int saldoReal = cofre.getSaldo();
         int clientesRestantes = filaClientes.size();
         boolean sincronismo = sincronismoCheckbox.isSelected();
         String algoritmo = (String) algoritmoCombo.getSelectedItem();
         
         log("\n" + repeat("=", 60));
-        log("📊 RESUMO FINAL DA SIMULAÇÃO");
+        log("📊 RESUMO " + (simulacaoRodando ? "ATUAL DA" : "FINAL DA") + " SIMULAÇÃO");
         log(repeat("=", 60));
         log("📋 Configuração: " + algoritmo + " | " + 
             (sincronismo ? "COM SINCRONISMO" : "SEM SINCRONISMO"));
-        log("🏦 Saldo final no cofre: R$ " + saldoReal);
+        log("🏦 Saldo atual no cofre: R$ " + saldoReal);
         log("👥 Clientes restantes na fila: " + clientesRestantes);
         
         if (!sincronismo) {
             log("⚠️  AVISO: Valor do cofre pode estar incorreto devido à falta de sincronização!");
         }
         
-        // Mostrar estatísticas finais dos caixas
-        log("\n⏱️  ESTATÍSTICAS FINAIS DOS CAIXAS:");
+        // Mostrar estatísticas dos caixas
+        log("\n⏱️  ESTATÍSTICAS DOS CAIXAS:");
         for (Caixa caixa : caixas) {
             log("Caixa " + caixa.getId() + ": " + caixa.getClientesAtendidos() + " clientes | " +
                 "Tempo total: " + (caixa.getTempoTotalAtendimento() / 1000.0) + "s | " +
@@ -372,8 +353,19 @@ public class Main extends JFrame {
         log("Tempo total de atendimento: " + (tempoTotal / 1000.0) + "s");
         log("Tempo médio por cliente: " + (totalClientes > 0 ? (tempoTotal / totalClientes / 1000.0) : 0) + "s");
         
-        log("⏹️ SIMULAÇÃO ENCERRADA");
         log(repeat("=", 60));
+    }
+
+    private void pararSimulacao() {
+        if (!simulacaoRodando) return;
+
+        // Parar todos os caixas
+        for (Caixa caixa : caixas) {
+            caixa.encerrar();
+        }
+        
+        log("⏹️ SIMULAÇÃO ENCERRADA");
+        log("📊 Clique em 'Mostrar Resumo' para ver as estatísticas finais");
 
         simulacaoRodando = false;
         atualizarEstadoBotoes(false);

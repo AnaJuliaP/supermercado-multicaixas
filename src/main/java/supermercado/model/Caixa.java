@@ -41,8 +41,9 @@ public class Caixa implements Runnable {
             try {
                 // 🧍‍♀️ Gera cliente se a fila estiver vazia
                 if (fila.isEmpty()) {
-                    Cliente novoCliente = GerarCliente.gerarClientesAleatorios(1).get(0);
-                    fila.put(novoCliente);
+                    log("⏹️ Caixa " + id + " parou - fila vazia");
+                    atualizarStatus("⏹️ FILA VAZIA - CAIXA PARADO");
+                    break;
                 }
 
                 Cliente cliente = fila.take();
