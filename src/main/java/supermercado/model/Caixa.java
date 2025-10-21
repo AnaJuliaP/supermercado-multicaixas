@@ -18,7 +18,10 @@ public class Caixa implements Runnable {
     private boolean sincronismo = false;
     private long tempoInicio;
     private long tempoTotalAtendimento = 0;
-    private int clientesAtendidos = 0; 
+    private int clientesAtendidos = 0;
+    
+    // 🆕 Lista para armazenar informações dos clientes atendidos
+    private java.util.List<ClienteAtendido> clientesAtendidosInfo = new java.util.ArrayList<>();
 
     public Caixa(int id, BlockingQueue<Cliente> fila, JTextArea logArea, JPanel caixaPanel, Cofre cofre, Runnable atualizarFilaCallback, boolean sincronismo) {
         this.id = id;
@@ -48,8 +51,17 @@ public class Caixa implements Runnable {
 
                 Cliente cliente = fila.take();
                 long inicioAtendimento = System.currentTimeMillis();
+                
+                // 🕐 Calcular tempo de espera na fila
+                long tempoEsperaFila = inicioAtendimento - cliente.getTempoChegadaFila();
+                double tempoEsperaSegundos = tempoEsperaFila / 1000.0;
+                
+                // 🆕 Armazenar informações do cliente atendido
+                clientesAtendidosInfo.add(new ClienteAtendido(cliente.getNome(), tempoEsperaSegundos));
+                
                 atualizarStatus("🟢 ATENDENDO: " + cliente.getNome());
-                log("📌 Caixa " + id + " iniciou atendimento: " + cliente.getNome());
+                log("📌 Caixa " + id + " iniciou atendimento: " + cliente.getNome() + 
+                    " (⏳ Esperou na fila: " + String.format("%.2f", tempoEsperaSegundos) + "s)");
                 
                 if (atualizarFilaCallback != null) {
                     atualizarFilaCallback.run();
@@ -76,7 +88,8 @@ public class Caixa implements Runnable {
                 
                 log("✅ Caixa " + id + " finalizou: " + cliente.getNome() +
                         " - Total: " + totalProdutos + " produtos" +
-                        " - Tempo: " + (tempoAtendimento / 1000.0) + "s");
+                        " - Tempo atendimento: " + (tempoAtendimento / 1000.0) + "s" +
+                        " - Tempo espera fila: " + String.format("%.2f", tempoEsperaSegundos) + "s");
 
                 // 💰 Simula o valor total da compra
                 double totalCompra = cliente.getProdutos().stream()
@@ -161,5 +174,37 @@ public class Caixa implements Runnable {
     
     public long getTempoMedioPorCliente() {
         return clientesAtendidos > 0 ? tempoTotalAtendimento / clientesAtendidos : 0;
+    }
+
+    // 🆕 Métodos para acessar informações dos clientes atendidos
+    public java.util.List<ClienteAtendido> getClientesAtendidosInfo() {
+        return new java.util.ArrayList<>(clientesAtendidosInfo);
+    }
+    
+    public double getTempoMedioEsperaFila() {
+        if (clientesAtendidosInfo.isEmpty()) return 0.0;
+        return clientesAtendidosInfo.stream().mapToDouble(ClienteAtendido::getTempoEspera).average().orElse(0.0);
+    }
+    
+    public double getTempoMaximoEsperaFila() {
+        return clientesAtendidosInfo.stream().mapToDouble(ClienteAtendido::getTempoEspera).max().orElse(0.0);
+    }
+    
+    public double getTempoMinimoEsperaFila() {
+        return clientesAtendidosInfo.stream().mapToDouble(ClienteAtendido::getTempoEspera).min().orElse(0.0);
+    }
+    
+    // 🆕 Classe interna para armazenar informações do cliente atendido
+    public static class ClienteAtendido {
+        private final String nome;
+        private final double tempoEspera;
+        
+        public ClienteAtendido(String nome, double tempoEspera) {
+            this.nome = nome;
+            this.tempoEspera = tempoEspera;
+        }
+        
+        public String getNome() { return nome; }
+        public double getTempoEspera() { return tempoEspera; }
     }
 }

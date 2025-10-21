@@ -257,11 +257,15 @@ public class Main extends JFrame {
                 verificarSeTodosCaixasDevemParar();
             } else {
                 sb.append("👥 Clientes restantes na fila:\n\n");
+                long tempoAtual = System.currentTimeMillis();
                 int contador = 0;
                 for (Cliente c : filaClientes) {
                     if (contador < 8) { 
+                        long tempoEspera = tempoAtual - c.getTempoChegadaFila();
+                        double tempoEsperaSegundos = tempoEspera / 1000.0;
                         sb.append("• ").append(c.getNome()).append(" - ")
-                          .append(c.getProdutos().size()).append(" produtos\n");
+                          .append(c.getProdutos().size()).append(" produtos")
+                          .append(" (⏳ ").append(String.format("%.1f", tempoEsperaSegundos)).append("s)\n");
                         contador++;
                     } else {
                         sb.append("\n... e mais ").append(tamanhoFila - 8).append(" clientes aguardando");
@@ -352,6 +356,50 @@ public class Main extends JFrame {
         log("Total de clientes atendidos: " + totalClientes);
         log("Tempo total de atendimento: " + (tempoTotal / 1000.0) + "s");
         log("Tempo médio por cliente: " + (totalClientes > 0 ? (tempoTotal / totalClientes / 1000.0) : 0) + "s");
+        
+        // 🆕 ESTATÍSTICAS DE TEMPO DE ESPERA NA FILA
+        log("\n⏳ ESTATÍSTICAS DE ESPERA NA FILA:");
+        
+        // Coletar todos os clientes atendidos
+        java.util.List<Caixa.ClienteAtendido> todosClientesAtendidos = new java.util.ArrayList<>();
+        for (Caixa caixa : caixas) {
+            todosClientesAtendidos.addAll(caixa.getClientesAtendidosInfo());
+        }
+        
+        if (!todosClientesAtendidos.isEmpty()) {
+            log("\n📊 Clientes já atendidos:");
+            for (Caixa.ClienteAtendido cliente : todosClientesAtendidos) {
+                log("  • " + cliente.getNome() + ": " + String.format("%.2f", cliente.getTempoEspera()) + "s na fila");
+            }
+            
+            // Calcular estatísticas dos clientes atendidos
+            double tempoMedioEspera = todosClientesAtendidos.stream().mapToDouble(Caixa.ClienteAtendido::getTempoEspera).average().orElse(0.0);
+            double tempoMaximoEspera = todosClientesAtendidos.stream().mapToDouble(Caixa.ClienteAtendido::getTempoEspera).max().orElse(0.0);
+            double tempoMinimoEspera = todosClientesAtendidos.stream().mapToDouble(Caixa.ClienteAtendido::getTempoEspera).min().orElse(0.0);
+            
+            log("  📊 Tempo médio de espera dos atendidos: " + String.format("%.2f", tempoMedioEspera) + "s");
+            log("  📊 Tempo máximo de espera: " + String.format("%.2f", tempoMaximoEspera) + "s");
+            log("  📊 Tempo mínimo de espera: " + String.format("%.2f", tempoMinimoEspera) + "s");
+        }
+        
+        // Mostrar tempo de espera dos clientes restantes na fila
+        if (filaClientes != null && !filaClientes.isEmpty()) {
+            log("\n📋 Clientes ainda na fila:");
+            long tempoAtual = System.currentTimeMillis();
+            java.util.List<Double> temposEsperaRestantes = new java.util.ArrayList<>();
+            
+            for (Cliente cliente : filaClientes) {
+                long tempoEspera = tempoAtual - cliente.getTempoChegadaFila();
+                double tempoEsperaSegundos = tempoEspera / 1000.0;
+                temposEsperaRestantes.add(tempoEsperaSegundos);
+                log("  • " + cliente.getNome() + ": " + String.format("%.2f", tempoEsperaSegundos) + "s na fila");
+            }
+            
+            if (!temposEsperaRestantes.isEmpty()) {
+                double tempoMedioRestantes = temposEsperaRestantes.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+                log("  📊 Tempo médio de espera dos restantes: " + String.format("%.2f", tempoMedioRestantes) + "s");
+            }
+        }
         
         log(repeat("=", 60));
     }
