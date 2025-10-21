@@ -27,6 +27,7 @@ public class Main extends JFrame {
     private JCheckBox sincronismoCheckbox;
     private JButton iniciarBtn;
     private boolean simulacaoRodando = false;
+    private boolean simulacaoExecutada = false;
 
     public Main() {
         setTitle("Simulação de Supermercado - Threads Paralelas");
@@ -91,7 +92,7 @@ public class Main extends JFrame {
         controlPanel.setLayout(new BoxLayout(controlPanel, BoxLayout.Y_AXIS));
 
         // Informação sobre caixas fixos
-        JLabel infoLabel = new JLabel("🏪 6 CAIXAS FIXOS");
+        JLabel infoLabel = new JLabel("🏪 3 CAIXAS FIXOS");
         infoLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
         infoLabel.setForeground(new Color(50, 50, 50));
         infoLabel.setHorizontalAlignment(SwingConstants.CENTER);
@@ -218,6 +219,7 @@ public class Main extends JFrame {
         }
 
         simulacaoRodando = true;
+        simulacaoExecutada = true;
         atualizarEstadoBotoes(true);
         caixasPanel.revalidate();
         caixasPanel.repaint();
@@ -237,7 +239,7 @@ public class Main extends JFrame {
         }
         
         log("👥 Fila fixa criada com " + filaClientes.size() + " clientes");
-        log("🔄 Todos os 6 caixas vão processar esta mesma fila");
+        log("🔄 Todos os 3 caixas vão processar esta mesma fila");
         atualizarFilaLabel();
     }
 
@@ -251,13 +253,19 @@ public class Main extends JFrame {
             StringBuilder sb = new StringBuilder();
             if (tamanhoFila == 0) {
                 sb.append("🎉 FILA VAZIA - Todos os clientes foram atendidos!");
+                // Verificar se todos os caixas devem parar
+                verificarSeTodosCaixasDevemParar();
             } else {
                 sb.append("👥 Clientes restantes na fila:\n\n");
+                long tempoAtual = System.currentTimeMillis();
                 int contador = 0;
                 for (Cliente c : filaClientes) {
                     if (contador < 8) { 
+                        long tempoEspera = tempoAtual - c.getTempoChegadaFila();
+                        double tempoEsperaSegundos = tempoEspera / 1000.0;
                         sb.append("• ").append(c.getNome()).append(" - ")
-                          .append(c.getProdutos().size()).append(" produtos\n");
+                          .append(c.getProdutos().size()).append(" produtos")
+                          .append(" (⏳ ").append(String.format("%.1f", tempoEsperaSegundos)).append("s)\n");
                         contador++;
                     } else {
                         sb.append("\n... e mais ").append(tamanhoFila - 8).append(" clientes aguardando");
@@ -267,6 +275,25 @@ public class Main extends JFrame {
             }
             filaClientesArea.setText(sb.toString());
         });
+    }
+
+    private void verificarSeTodosCaixasDevemParar() {
+        // Aguardar um pouco para garantir que todos os caixas tenham tempo de processar
+        new Thread(() -> {
+            try {
+                Thread.sleep(2000); // Aguarda 2 segundos
+                
+                // Verificar se a fila ainda está vazia e se a simulação ainda está rodando
+                if (simulacaoRodando && filaClientes.isEmpty()) {
+                    log("🏁 Todos os clientes foram atendidos - encerrando simulação automaticamente");
+                    SwingUtilities.invokeLater(() -> {
+                        pararSimulacao();
+                    });
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }).start();
     }
 
     private void abrirNovoCaixa() {
@@ -292,8 +319,8 @@ public class Main extends JFrame {
     }
 
     private void mostrarResumo() {
-        if (!simulacaoRodando) {
-            log("⚠️ Nenhuma simulação em andamento");
+        if (!simulacaoExecutada) {
+            log("⚠️ Nenhuma simulação foi executada ainda");
             return;
         }
 
@@ -303,7 +330,7 @@ public class Main extends JFrame {
         String algoritmo = (String) algoritmoCombo.getSelectedItem();
         
         log("\n" + repeat("=", 60));
-        log("📊 RESUMO ATUAL DA SIMULAÇÃO");
+        log("📊 RESUMO " + (simulacaoRodando ? "ATUAL DA" : "FINAL DA") + " SIMULAÇÃO");
         log(repeat("=", 60));
         log("📋 Configuração: " + algoritmo + " | " + 
             (sincronismo ? "COM SINCRONISMO" : "SEM SINCRONISMO"));
@@ -321,6 +348,59 @@ public class Main extends JFrame {
                 "Tempo total: " + (caixa.getTempoTotalAtendimento() / 1000.0) + "s | " +
                 "Tempo médio: " + (caixa.getTempoMedioPorCliente() / 1000.0) + "s/cliente");
         }
+        
+        // Calcular estatísticas gerais
+        int totalClientes = caixas.stream().mapToInt(Caixa::getClientesAtendidos).sum();
+        long tempoTotal = caixas.stream().mapToLong(Caixa::getTempoTotalAtendimento).sum();
+        log("\n📈 ESTATÍSTICAS GERAIS:");
+        log("Total de clientes atendidos: " + totalClientes);
+        log("Tempo total de atendimento: " + (tempoTotal / 1000.0) + "s");
+        log("Tempo médio por cliente: " + (totalClientes > 0 ? (tempoTotal / totalClientes / 1000.0) : 0) + "s");
+        
+        // 🆕 ESTATÍSTICAS DE TEMPO DE ESPERA NA FILA
+        log("\n⏳ ESTATÍSTICAS DE ESPERA NA FILA:");
+        
+        // Coletar todos os clientes atendidos
+        java.util.List<Caixa.ClienteAtendido> todosClientesAtendidos = new java.util.ArrayList<>();
+        for (Caixa caixa : caixas) {
+            todosClientesAtendidos.addAll(caixa.getClientesAtendidosInfo());
+        }
+        
+        if (!todosClientesAtendidos.isEmpty()) {
+            log("\n📊 Clientes já atendidos:");
+            for (Caixa.ClienteAtendido cliente : todosClientesAtendidos) {
+                log("  • " + cliente.getNome() + ": " + String.format("%.2f", cliente.getTempoEspera()) + "s na fila");
+            }
+            
+            // Calcular estatísticas dos clientes atendidos
+            double tempoMedioEspera = todosClientesAtendidos.stream().mapToDouble(Caixa.ClienteAtendido::getTempoEspera).average().orElse(0.0);
+            double tempoMaximoEspera = todosClientesAtendidos.stream().mapToDouble(Caixa.ClienteAtendido::getTempoEspera).max().orElse(0.0);
+            double tempoMinimoEspera = todosClientesAtendidos.stream().mapToDouble(Caixa.ClienteAtendido::getTempoEspera).min().orElse(0.0);
+            
+            log("  📊 Tempo médio de espera dos atendidos: " + String.format("%.2f", tempoMedioEspera) + "s");
+            log("  📊 Tempo máximo de espera: " + String.format("%.2f", tempoMaximoEspera) + "s");
+            log("  📊 Tempo mínimo de espera: " + String.format("%.2f", tempoMinimoEspera) + "s");
+        }
+        
+        // Mostrar tempo de espera dos clientes restantes na fila
+        if (filaClientes != null && !filaClientes.isEmpty()) {
+            log("\n📋 Clientes ainda na fila:");
+            long tempoAtual = System.currentTimeMillis();
+            java.util.List<Double> temposEsperaRestantes = new java.util.ArrayList<>();
+            
+            for (Cliente cliente : filaClientes) {
+                long tempoEspera = tempoAtual - cliente.getTempoChegadaFila();
+                double tempoEsperaSegundos = tempoEspera / 1000.0;
+                temposEsperaRestantes.add(tempoEsperaSegundos);
+                log("  • " + cliente.getNome() + ": " + String.format("%.2f", tempoEsperaSegundos) + "s na fila");
+            }
+            
+            if (!temposEsperaRestantes.isEmpty()) {
+                double tempoMedioRestantes = temposEsperaRestantes.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+                log("  📊 Tempo médio de espera dos restantes: " + String.format("%.2f", tempoMedioRestantes) + "s");
+            }
+        }
+        
         log(repeat("=", 60));
     }
 
@@ -332,42 +412,8 @@ public class Main extends JFrame {
             caixa.encerrar();
         }
         
-        // Mostrar resumo final
-        int saldoReal = cofre.getSaldo();
-        int clientesRestantes = filaClientes.size();
-        boolean sincronismo = sincronismoCheckbox.isSelected();
-        String algoritmo = (String) algoritmoCombo.getSelectedItem();
-        
-        log("\n" + repeat("=", 60));
-        log("📊 RESUMO FINAL DA SIMULAÇÃO");
-        log(repeat("=", 60));
-        log("📋 Configuração: " + algoritmo + " | " + 
-            (sincronismo ? "COM SINCRONISMO" : "SEM SINCRONISMO"));
-        log("🏦 Saldo final no cofre: R$ " + saldoReal);
-        log("👥 Clientes restantes na fila: " + clientesRestantes);
-        
-        if (!sincronismo) {
-            log("⚠️  AVISO: Valor do cofre pode estar incorreto devido à falta de sincronização!");
-        }
-        
-        // Mostrar estatísticas finais dos caixas
-        log("\n⏱️  ESTATÍSTICAS FINAIS DOS CAIXAS:");
-        for (Caixa caixa : caixas) {
-            log("Caixa " + caixa.getId() + ": " + caixa.getClientesAtendidos() + " clientes | " +
-                "Tempo total: " + (caixa.getTempoTotalAtendimento() / 1000.0) + "s | " +
-                "Tempo médio: " + (caixa.getTempoMedioPorCliente() / 1000.0) + "s/cliente");
-        }
-        
-        // Calcular estatísticas gerais
-        int totalClientes = caixas.stream().mapToInt(Caixa::getClientesAtendidos).sum();
-        long tempoTotal = caixas.stream().mapToLong(Caixa::getTempoTotalAtendimento).sum();
-        log("\n📈 ESTATÍSTICAS GERAIS:");
-        log("Total de clientes atendidos: " + totalClientes);
-        log("Tempo total de atendimento: " + (tempoTotal / 1000.0) + "s");
-        log("Tempo médio por cliente: " + (totalClientes > 0 ? (tempoTotal / totalClientes / 1000.0) : 0) + "s");
-        
         log("⏹️ SIMULAÇÃO ENCERRADA");
-        log(repeat("=", 60));
+        log("📊 Clique em 'Mostrar Resumo' para ver as estatísticas finais");
 
         simulacaoRodando = false;
         atualizarEstadoBotoes(false);
